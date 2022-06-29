@@ -27,9 +27,15 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <utils/tic_toc.h>
 #include <yaml-cpp/yaml.h>
+#include <sensor_data/calibration.hpp>
+
+// Include FLANN before OpenCV to avoid build error
+// https://github.com/flann-lib/flann/issues/214
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
+
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
-#include <sensor_data/calibration.hpp>
 
 namespace clins {
 

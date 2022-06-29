@@ -30,6 +30,7 @@ find_package(catkin REQUIRED COMPONENTS
     eigen_conversions
     tf_conversions
     roslib
+    angles
 )
 
 find_package(Eigen3)
@@ -86,6 +87,7 @@ list(APPEND thirdparty_libraries
         ${OpenCV_LIBS}
         ${YAML_CPP_LIBRARIES}
         ceres
+        fmt
 )
 
 ################# Node ###################
@@ -105,7 +107,7 @@ add_dependencies(clins_offline_node  ${PROJECT_NAME}_generate_messages_cpp)
 
 add_executable(kaist_sick_map_generation
                src/node/kaist_sick_map_generation.cpp)
-target_link_libraries(kaist_sick_map_generation  ${thirdparty_libraries})
+target_link_libraries(kaist_sick_map_generation ${thirdparty_libraries})
 
 add_executable(recovery_vlp16_timestamp src/node/recovery_vlp16_timestamp.cpp)
 target_link_libraries(recovery_vlp16_timestamp ${catkin_LIBRARIES} ${PCL_LIBRARIES})

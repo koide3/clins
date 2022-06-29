@@ -336,6 +336,7 @@ bool LidarOdometry<_N>::UpdateOdometry() {
                                          feature_cur_ds_);
 
   UpdateKeyFrames();
+  return true;
 }
 
 template <int _N>

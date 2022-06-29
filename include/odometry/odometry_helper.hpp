@@ -500,7 +500,7 @@ void OdometryHelper<_N>::PublishLoopClosureMarkers() {
   if (loop_closure_info.empty()) return;
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker marker_node;
-  marker_node.header.frame_id = "/map";
+  marker_node.header.frame_id = "map";
   marker_node.header.stamp = ros::Time::now();
   marker_node.action = visualization_msgs::Marker::ADD;
   marker_node.type = visualization_msgs::Marker::SPHERE_LIST;
