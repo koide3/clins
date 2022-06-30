@@ -1,10 +1,12 @@
 <launch>
     <arg name="bag_path" />
     <arg name="dst_path" />
+    <arg name="config_name" default="/config/ncm.yaml"/>
 
     <node pkg="rosbag" type="record" name="bag_recorder" args="-O $(arg dst_path) /pose /spline_trajectory /tf /tf_static" output="screen"/>
+    <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find clins)/launch/odom.rviz"/>
     <node pkg="clins" type="clins_offline_node" name="clins_offline_node" output="screen" required="true">
-        <param name="config_name" value="/config/ncm.yaml" />
+        <param name="config_name" value="$(arg config_name)" />
         <param name="bag_path" value="$(arg bag_path)" />
     </node>
 </launch>

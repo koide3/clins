@@ -7,6 +7,7 @@ RUN apt-get update \
     libmetis-dev ros-noetic-pcl-ros ros-noetic-eigen-conversions \
     ros-noetic-angles ros-noetic-velodyne-driver ros-noetic-velodyne-pointcloud \
     ros-noetic-tf-conversions ros-noetic-eigen-conversions ros-noetic-cv-bridge \
+    ros-noetic-rviz \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 
