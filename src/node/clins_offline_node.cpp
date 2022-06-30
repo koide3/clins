@@ -42,6 +42,8 @@ int main(int argc, char** argv) {
   nh.param<std::string>("config_name", config_name, "/config/ct_odometry.yaml");
 
   std::string config_file_path = package_path + config_name;
+
+  std::cout << "config_file_path:" << config_file_path << std::endl;
   YAML::Node config_node = YAML::LoadFile(config_file_path);
 
   const std::string bag_path = nh.param<std::string>("bag_path", "");
