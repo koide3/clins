@@ -1,0 +1,10 @@
+<launch>
+    <arg name="bag_path" />
+    <arg name="dst_path" />
+
+    <node pkg="rosbag" type="record" name="bag_recorder" args="-O $(arg dst_path) /spline_trajectory /tf /tf_static" output="screen"/>
+    <node pkg="clins" type="clins_offline_node" name="clins_offline_node" required="true">
+        <param name="config_file" value="/config/ncm.yaml" />
+        <param name="bag_path" value="$(arg bag_path)" />
+    </node>
+</launch>

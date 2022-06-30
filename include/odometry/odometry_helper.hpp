@@ -298,7 +298,7 @@ bool OdometryHelper<_N>::ParsePointCloud(
     if (ret) hasTimeField = true;
   }
 
-  double scan_time =
+  double scan_time =  
       lidar_msg->header.stamp.toSec() + calib_param_->time_offset;
 
   max_time = 0;
@@ -313,7 +313,28 @@ bool OdometryHelper<_N>::ParsePointCloud(
       if (max_time < point_timestamp) max_time = point_timestamp;
     }
     return true;
+  } else if (CheckMsgFields(*lidar_msg, "t")) {
+    RTOSPointCloud::Ptr cur_cloud(new RTOSPointCloud());
+    pcl::fromROSMsg(*lidar_msg, *cur_cloud);
+
+    raw_cloud_->clear();
+    for (size_t i = 0; i < cur_cloud->size(); i++) {
+      double point_timestamp = scan_time + cur_cloud->points[i].time / 1e9;
+
+      RTPoint pt;
+      pt.getVector4fMap() = cur_cloud->points[i].getVector4fMap();
+      pt.intensity = cur_cloud->points[i].intensity;
+      pt.ring = cur_cloud->points[i].ring;
+      pt.time = cur_cloud->points[i].time / 1e9;
+
+      raw_cloud_->push_back(pt);
+
+      if (max_time < point_timestamp) max_time = point_timestamp;
+    }
+
+    return true;
   } else {
+    std::cout << "no per-point time!!" << std::endl;
     return false;
   }
 }

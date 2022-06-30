@@ -29,6 +29,7 @@ using namespace std;
 using namespace clins;
 
 int main(int argc, char** argv) {
+  std::cout << "clins" << std::endl;
   ros::init(argc, argv, "clins_offline_node");
   ros::NodeHandle nh("~");
 
@@ -42,6 +43,11 @@ int main(int argc, char** argv) {
 
   std::string config_file_path = package_path + config_name;
   YAML::Node config_node = YAML::LoadFile(config_file_path);
+
+  const std::string bag_path = nh.param<std::string>("bag_path", "");
+  if (!bag_path.empty()) {
+    config_node["bag_path"] = bag_path;
+  }
 
   OdometryHelper<4> lio(config_node);
 

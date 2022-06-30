@@ -58,6 +58,14 @@ struct PointXYZIRT {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW  // ensure proper alignment
 } EIGEN_ALIGN16;
 
+struct PointXYZIRT_OS {
+  PCL_ADD_POINT4D;                 // quad-word XYZ
+  float intensity;                 ///< laser intensity reading
+  uint8_t ring;                   ///< laser ring number
+  uint32_t time;                      ///< laser time reading
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW  // ensure proper alignment
+} EIGEN_ALIGN16;
+
 struct PointXYZT {
   PCL_ADD_POINT4D;                 /// quad-word XYZ
   double timestamp;                /// laser timestamp
@@ -86,6 +94,19 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(velodyne_pcl::PointXYZIRT, (float, x, x)  //
 
 typedef velodyne_pcl::PointXYZIRT RTPoint;
 typedef pcl::PointCloud<RTPoint> RTPointCloud;
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(
+  velodyne_pcl::PointXYZIRT_OS,
+  (float, x, x)                  //
+  (float, y, y)                  //
+  (float, z, z)                  //
+  (float, intensity, intensity)  //
+  (uint8_t, ring, ring)         //
+  (uint32_t, time, t)            //
+)
+
+typedef velodyne_pcl::PointXYZIRT_OS RTOSPoint;
+typedef pcl::PointCloud<RTOSPoint> RTOSPointCloud;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(velodyne_pcl::PointXYZT, (float, x, x)  //
                                   (float, y, y)                           //
