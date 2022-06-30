@@ -24,6 +24,7 @@
 #include <rosbag/view.h>
 #include <boost/foreach.hpp>
 
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <sensor_data/imu_data.h>
 #include <sensor_msgs/Imu.h>
@@ -111,6 +112,7 @@ class OdometryHelper {
   ros::Subscriber sub_lidar_feature_;
   ros::Subscriber sub_lidar_;
 
+  ros::Publisher pub_pose_;
   ros::Publisher pub_key_pose_;
   ros::Publisher pub_loop_closure_marker_;
 
@@ -171,6 +173,7 @@ OdometryHelper<_N>::OdometryHelper(const YAML::Node& node)
 
   feature_extraction_ = std::make_shared<FeatureExtraction>(node);
 
+  pub_pose_ = nh_.advertise<geometry_msgs::PoseStamped>("pose", 10);
   pub_key_pose_ = nh_.advertise<sensor_msgs::PointCloud2>("key_poses", 10);
   pub_loop_closure_marker_ = nh_.advertise<visualization_msgs::MarkerArray>(
       "/loop_clousre_markers", 10);
@@ -418,8 +421,11 @@ void OdometryHelper<_N>::LidarSpinOffline() {
       sensor_msgs::Imu::ConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
       IMUHandler(imu_msg);
     } else if (m.getTopic() == lidar_topic_) {
+      ros::Time stamp;
       if (m.getDataType() == std::string("sensor_msgs/PointCloud2")) {
         auto lidar_msg = m.instantiate<sensor_msgs::PointCloud2>();
+        stamp = lidar_msg->header.stamp;
+
         double delta_time =
             ros_bag_time.toSec() - lidar_msg->header.stamp.toSec();
         if (delta_time < 0.08) {
@@ -428,8 +434,8 @@ void OdometryHelper<_N>::LidarSpinOffline() {
         LiDARHandler(lidar_msg);
       } else if (m.getDataType() == std::string("velodyne_msgs/VelodyneScan")) {
         auto lidar_msg = m.instantiate<velodyne_msgs::VelodyneScan>();
-        double delta_time =
-            ros_bag_time.toSec() - lidar_msg->header.stamp.toSec();
+        stamp = lidar_msg->header.stamp;
+        double delta_time = ros_bag_time.toSec() - lidar_msg->header.stamp.toSec();
         if (delta_time < 0.08) {
           std::cout << " Delta Time : " << delta_time << std::endl;
         }
@@ -440,7 +446,22 @@ void OdometryHelper<_N>::LidarSpinOffline() {
         PublishKeyPoses();
 
         auto pose = trajectory_->GetLidarPose(lidar_timestamps_.back());
-        PublishTF(pose.unit_quaternion(), pose.translation(), "lidar", "map");
+        auto quat = pose.unit_quaternion();
+        auto trans = pose.translation();
+
+        PublishTF(quat, trans, "lidar", "map");
+
+        geometry_msgs::PoseStamped pose_msg;
+        pose_msg.header.frame_id = "map";
+        pose_msg.header.stamp = stamp;
+        pose_msg.pose.orientation.x = quat.x();
+        pose_msg.pose.orientation.y = quat.y();
+        pose_msg.pose.orientation.z = quat.z();
+        pose_msg.pose.orientation.w = quat.w();
+        pose_msg.pose.position.x = trans.x();
+        pose_msg.pose.position.y = trans.y();
+        pose_msg.pose.position.z = trans.z();
+        pub_pose_.publish(pose_msg);
       }
     }
 
