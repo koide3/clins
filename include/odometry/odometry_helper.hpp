@@ -150,7 +150,8 @@ OdometryHelper<_N>::OdometryHelper(const YAML::Node& node)
   save_map_ = node["save_map"].as<bool>();
 
   bool use_corner_feature = node["use_corner_feature"].as<bool>();
-  bool use_imu_orientation_ = node["use_imu_orientation"].as<bool>();
+  use_imu_orientation_ = node["use_imu_orientation"].as<bool>();
+  
 
   calib_param_ = std::make_shared<CalibParamManager>(node);
   trajectory_ = std::make_shared<Trajectory<_N>>(knot_distance_);
