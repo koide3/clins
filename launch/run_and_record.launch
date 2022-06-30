@@ -1,6 +1,7 @@
 <launch>
     <arg name="bag_path" />
     <arg name="dst_path" />
+    <arg name="cache_path" default="/tmp/clins_cache" />
     <arg name="config_name" default="/config/ncm.yaml"/>
 
     <node pkg="rosbag" type="record" name="bag_recorder" args="-O $(arg dst_path) /pose /spline_trajectory /tf /tf_static" output="screen"/>
@@ -8,5 +9,6 @@
     <node pkg="clins" type="clins_offline_node" name="clins_offline_node" output="screen" required="true">
         <param name="config_name" value="$(arg config_name)" />
         <param name="bag_path" value="$(arg bag_path)" />
+        <param name="cache_path" value="$(arg cache_path)" />
     </node>
 </launch>

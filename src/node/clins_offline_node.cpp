@@ -51,6 +51,11 @@ int main(int argc, char** argv) {
     config_node["bag_path"] = bag_path;
   }
 
+  const std::string cache_path = nh.param<std::string>("cache_path", "");
+  if (!cache_path.empty()) {
+    config_node["cache_path"] = cache_path;
+  }
+
   OdometryHelper<4> lio(config_node);
 
   lio.LidarSpinOffline();

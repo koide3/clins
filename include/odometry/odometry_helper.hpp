@@ -23,6 +23,7 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <boost/foreach.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
@@ -182,18 +183,22 @@ OdometryHelper<_N>::OdometryHelper(const YAML::Node& node)
   bag_start_ = node["bag_start"].as<double>();
   bag_durr_ = node["bag_durr"].as<double>();
 
-  CreateCacheFolder(bag_path_);
+  if(save_map_) {
+    cache_path_ = node["cache_path"].as<std::string>();
+    std::cout << "cache_path:" << cache_path_ << std::endl;
+    CreateCacheFolder(bag_path_);
+  }
 
   lidar_odom_->SetCachePath(cache_path_);
 }
 
 template <int _N>
 bool OdometryHelper<_N>::CreateCacheFolder(const std::string path) {
-  boost::filesystem::path p(path);
-  if (p.extension() != ".bag") {
-    return false;
-  }
-  cache_path_ = p.parent_path().string() + "/" + p.stem().string();
+  // boost::filesystem::path p(path);
+  // if (p.extension() != ".bag") {
+  //   return false;
+  // }
+  // cache_path_ = p.parent_path().string() + "/" + p.stem().string();
 
   boost::filesystem::create_directory(cache_path_);
   return true;
@@ -391,92 +396,102 @@ void OdometryHelper<_N>::LoopClosure() {
 
 template <int _N>
 void OdometryHelper<_N>::LidarSpinOffline() {
-  rosbag::Bag bag;
-  bag.open(bag_path_, rosbag::bagmode::Read);
+  std::vector<std::string> bag_paths;
+  boost::split(bag_paths, bag_path_, boost::is_space());
 
-  std::vector<std::string> topics;
-  topics.push_back(lidar_topic_);
-  topics.push_back(imu_topic_);
-
-  rosbag::View view_;
-  rosbag::View view_full;
-  view_full.addQuery(bag);
-  ros::Time time_init = view_full.getBeginTime();
-  time_init += ros::Duration(bag_start_);
-  ros::Time time_finish = (bag_durr_ < 0)
-                              ? view_full.getEndTime()
-                              : time_init + ros::Duration(bag_durr_);
-  view_.addQuery(bag, rosbag::TopicQuery(topics), time_init, time_finish);
-
-  if (view_.size() == 0) {
-    ROS_ERROR("No messages to play on specified topics.  Exiting.");
-    ros::shutdown();
-    return;
+  std::cout << "bag_path_:" << bag_path_ << std::endl;
+  for(const auto& bag_path: bag_paths) {
+    std::cout << "- " << bag_path << std::endl;
   }
 
-  ros::Rate rate(5);
-  for (const rosbag::MessageInstance& m : view_) {
-    ros::Time ros_bag_time = m.getTime();
-    if (m.getTopic() == imu_topic_) {
-      sensor_msgs::Imu::ConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
-      IMUHandler(imu_msg);
-    } else if (m.getTopic() == lidar_topic_) {
-      ros::Time stamp;
-      if (m.getDataType() == std::string("sensor_msgs/PointCloud2")) {
-        auto lidar_msg = m.instantiate<sensor_msgs::PointCloud2>();
-        stamp = lidar_msg->header.stamp;
-
-        double delta_time =
-            ros_bag_time.toSec() - lidar_msg->header.stamp.toSec();
-        if (delta_time < 0.08) {
-          std::cout << " Delta Time : " << delta_time << std::endl;
-        }
-        LiDARHandler(lidar_msg);
-      } else if (m.getDataType() == std::string("velodyne_msgs/VelodyneScan")) {
-        auto lidar_msg = m.instantiate<velodyne_msgs::VelodyneScan>();
-        stamp = lidar_msg->header.stamp;
-        double delta_time = ros_bag_time.toSec() - lidar_msg->header.stamp.toSec();
-        if (delta_time < 0.08) {
-          std::cout << " Delta Time : " << delta_time << std::endl;
-        }
-        LiDARHandler(lidar_msg);
-      }
-
-      if (is_initialized_) {
-        PublishKeyPoses();
-
-        auto pose = trajectory_->GetLidarPose(lidar_timestamps_.back());
-        auto quat = pose.unit_quaternion();
-        auto trans = pose.translation();
-
-        PublishTF(quat, trans, "lidar", "map");
-
-        geometry_msgs::PoseStamped pose_msg;
-        pose_msg.header.frame_id = "map";
-        pose_msg.header.stamp = stamp;
-        pose_msg.pose.orientation.x = quat.x();
-        pose_msg.pose.orientation.y = quat.y();
-        pose_msg.pose.orientation.z = quat.z();
-        pose_msg.pose.orientation.w = quat.w();
-        pose_msg.pose.position.x = trans.x();
-        pose_msg.pose.position.y = trans.y();
-        pose_msg.pose.position.z = trans.z();
-        pub_pose_.publish(pose_msg);
-      }
+  for (const auto& bag_path : bag_paths) {
+    if(bag_path.empty()) {
+      continue;
     }
 
-    double bag_time = m.getTime().toSec();
-    if (loop_closure_timestamp_ < 0) {
-      loop_closure_timestamp_ = bag_time;
-    } else {
-      if (bag_time - loop_closure_timestamp_ >
-          (1.0 / loop_closure_frequency_)) {
+    rosbag::Bag bag;
+    bag.open(bag_path, rosbag::bagmode::Read);
+
+    std::vector<std::string> topics;
+    topics.push_back(lidar_topic_);
+    topics.push_back(imu_topic_);
+
+    rosbag::View view_;
+    rosbag::View view_full;
+    view_full.addQuery(bag);
+    ros::Time time_init = view_full.getBeginTime();
+    time_init += ros::Duration(bag_start_);
+    ros::Time time_finish = (bag_durr_ < 0) ? view_full.getEndTime() : time_init + ros::Duration(bag_durr_);
+    view_.addQuery(bag, rosbag::TopicQuery(topics), time_init, time_finish);
+
+    if (view_.size() == 0) {
+      ROS_ERROR("No messages to play on specified topics.  Exiting.");
+      ros::shutdown();
+      return;
+    }
+
+    ros::Rate rate(5);
+    for (const rosbag::MessageInstance& m : view_) {
+      ros::Time ros_bag_time = m.getTime();
+      if (m.getTopic() == imu_topic_) {
+        sensor_msgs::Imu::ConstPtr imu_msg = m.instantiate<sensor_msgs::Imu>();
+        IMUHandler(imu_msg);
+      } else if (m.getTopic() == lidar_topic_) {
+        ros::Time stamp;
+        if (m.getDataType() == std::string("sensor_msgs/PointCloud2")) {
+          auto lidar_msg = m.instantiate<sensor_msgs::PointCloud2>();
+          stamp = lidar_msg->header.stamp;
+
+          double delta_time = ros_bag_time.toSec() - lidar_msg->header.stamp.toSec();
+          if (delta_time < 0.08) {
+            std::cout << " Delta Time : " << delta_time << std::endl;
+          }
+          LiDARHandler(lidar_msg);
+        } else if (m.getDataType() == std::string("velodyne_msgs/VelodyneScan")) {
+          auto lidar_msg = m.instantiate<velodyne_msgs::VelodyneScan>();
+          stamp = lidar_msg->header.stamp;
+          double delta_time = ros_bag_time.toSec() - lidar_msg->header.stamp.toSec();
+          if (delta_time < 0.08) {
+            std::cout << " Delta Time : " << delta_time << std::endl;
+          }
+          LiDARHandler(lidar_msg);
+        }
+
+        if (is_initialized_) {
+          PublishKeyPoses();
+
+          auto pose = trajectory_->GetLidarPose(lidar_timestamps_.back());
+          auto quat = pose.unit_quaternion();
+          auto trans = pose.translation();
+
+          PublishTF(quat, trans, "lidar", "map");
+
+          geometry_msgs::PoseStamped pose_msg;
+          pose_msg.header.frame_id = "map";
+          pose_msg.header.stamp = stamp;
+          pose_msg.pose.orientation.x = quat.x();
+          pose_msg.pose.orientation.y = quat.y();
+          pose_msg.pose.orientation.z = quat.z();
+          pose_msg.pose.orientation.w = quat.w();
+          pose_msg.pose.position.x = trans.x();
+          pose_msg.pose.position.y = trans.y();
+          pose_msg.pose.position.z = trans.z();
+          pub_pose_.publish(pose_msg);
+        }
+      }
+
+      double bag_time = m.getTime().toSec();
+      if (loop_closure_timestamp_ < 0) {
         loop_closure_timestamp_ = bag_time;
-        LoopClosure();
+      } else {
+        if (bag_time - loop_closure_timestamp_ > (1.0 / loop_closure_frequency_)) {
+          loop_closure_timestamp_ = bag_time;
+          LoopClosure();
+        }
       }
-    }
 
-    if (!ros::ok()) break;
+      if (!ros::ok()) break;
+    }
   }
 
   // save map
